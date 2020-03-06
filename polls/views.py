@@ -1,7 +1,8 @@
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.urls import reverse
 
-from .models import Question
+from .models import Choice, Question
 
 # Create your views here.
 def index(request):
@@ -14,8 +15,24 @@ def detail(request, question_id):
      return render(request, 'polls/detail.html', {'question': question})
 
 def results(request, question_id):
-    response = "You're looking at the results of question %s."
-    return HttpResponse(response % question_id)
+    question = get_object_or_404(Question, pk=question_id)
+    return render(request, 'polls/results.html', {'question': question})
 
 def vote(request, question_id):
-    return HttpResponse("You're voting on question %s." % question_id)
+    question = get_object_or_404(Question, pk=question_id) # bir question aliyor ya da 404 error veriyor.
+    try:
+        selected_choice = question.choice_set.get(pk=request.POST['choice']) # o question icin bir spesifik choice da aliyor.
+    except (KeyError, Choice.DoesNotExist): # choice olup olmadigi kontrol ediliyor.
+
+        return render(request, 'polls/detail.html', { # choice yoksa bu adres donduruluyor.
+            'question': question,
+            'error_message': "You didn't select a choice.",
+        })
+    else:
+        selected_choice.votes += 1
+        selected_choice.save()
+        # Always return an HttpResponseRedirect after successfully dealing
+        # with POST data. This prevents data from being posted twice if a
+        # user hits the Back button.
+        return HttpResponseRedirect(reverse('polls:results', args=(question.id,))) # eger burada homepage'e geri don vs yaparsak
+        # eger kullanici sayfayi yenilerse tekrar tekrar submit yapacagindan bu cozumden kaciniriz.
